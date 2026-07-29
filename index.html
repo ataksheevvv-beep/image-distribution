@@ -614,21 +614,18 @@
           </form>
 
           <details id="firebaseDetails" class="setup-details">
-            <summary>Первичная настройка Firebase</summary>
+            <summary>Техническая информация Firebase</summary>
             <div class="details-content">
               <ol class="setup-list">
-                <li>Создайте проект Firebase, зарегистрируйте веб-приложение и создайте Realtime Database.</li>
-                <li>В разделе Authentication включите способ входа «Анонимный».</li>
-                <li>Вставьте в Realtime Database правила из блока ниже.</li>
-                <li>Разместите этот HTML-файл на HTTPS-хостинге и добавьте домен в список разрешённых доменов Authentication.</li>
+                <li>Конфигурация Firebase уже встроена в этот файл.</li>
+                <li>Администратору больше не нужно вставлять настройки вручную.</li>
+                <li>На другом устройстве приложение будет использовать ту же встроенную конфигурацию автоматически.</li>
+                <li>Ниже оставлены только справочные данные и правила базы.</li>
               </ol>
 
-              <label class="field-label" for="firebaseConfigInput">Конфигурация веб-приложения Firebase</label>
-              <textarea id="firebaseConfigInput" class="config-textarea" spellcheck="false" placeholder="Вставьте объект firebaseConfig из консоли Firebase"></textarea>
-              <p class="field-hint">Обязательно поле databaseURL. Конфигурация сохраняется только в браузере администратора и передаётся участникам внутри ссылки.</p>
-              <div class="button-row" style="margin-top:12px;">
-                <button id="saveConfigButton" class="btn btn-secondary" type="button">Проверить и сохранить конфигурацию</button>
-              </div>
+              <label class="field-label" for="firebaseConfigInput">Встроенная конфигурация Firebase</label>
+              <textarea id="firebaseConfigInput" class="config-textarea" spellcheck="false" readonly aria-readonly="true"></textarea>
+              <p class="field-hint">Это справочная информация. Конфигурация уже встроена в приложение и не редактируется.</p>
               <div id="configFeedback" class="feedback" role="status"></div>
 
               <h3 style="margin-top:24px;">Правила Realtime Database</h3>
@@ -783,6 +780,17 @@
   }
 }`;
 
+    const EMBEDDED_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyBU3KgzlgG-IOwJXjgL8hYLj-jw8uzYJKk",
+      authDomain: "pikcher-e34d6.firebaseapp.com",
+      databaseURL: "https://pikcher-e34d6-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "pikcher-e34d6",
+      storageBucket: "pikcher-e34d6.firebasestorage.app",
+      messagingSenderId: "165565828391",
+      appId: "1:165565828391:web:223c1d56b8d0980f872d02",
+      measurementId: "G-R13SWGES5V"
+    };
+
     const STORAGE_CONFIG_KEY = "image-distribution-firebase-config-v1";
     const screens = {
       adminSetup: document.getElementById("adminSetupScreen"),
@@ -813,7 +821,6 @@
     const setupFeedback = document.getElementById("setupFeedback");
     const firebaseDetails = document.getElementById("firebaseDetails");
     const firebaseConfigInput = document.getElementById("firebaseConfigInput");
-    const saveConfigButton = document.getElementById("saveConfigButton");
     const configFeedback = document.getElementById("configFeedback");
     const copyRulesButton = document.getElementById("copyRulesButton");
     const rulesBlock = document.getElementById("rulesBlock");
@@ -968,13 +975,12 @@
       return JSON.parse(new TextDecoder().decode(bytes));
     }
 
-    function buildAppUrl(mode, sessionId, config) {
+    function buildAppUrl(mode, sessionId) {
       const url = new URL(window.location.href);
       url.search = "";
       url.hash = "";
       url.searchParams.set("mode", mode);
       url.searchParams.set("session", sessionId);
-      url.searchParams.set("cfg", encodeConfig(config));
       return url.toString();
     }
 
@@ -985,6 +991,10 @@
       } catch (error) {
         return null;
       }
+    }
+
+    function getEmbeddedConfig() {
+      return JSON.parse(JSON.stringify(EMBEDDED_FIREBASE_CONFIG));
     }
 
     function saveConfig(config) {
@@ -1082,7 +1092,7 @@
       });
 
       state.sessionId = sessionId;
-      state.participantUrl = buildAppUrl("join", sessionId, config);
+      state.participantUrl = buildAppUrl("join", sessionId);
       const adminUrl = buildAppUrl("admin", sessionId, config);
       history.replaceState({}, "", adminUrl);
       await openAdminDashboard();
@@ -1150,7 +1160,7 @@
         if (session.hostUid !== state.user.uid) throw new Error("Эта панель администратора создана в другом браузере или данные браузера были очищены.");
         state.sessionId = sessionId;
         state.sessionData = session;
-        state.participantUrl = buildAppUrl("join", sessionId, config);
+        state.participantUrl = buildAppUrl("join", sessionId);
         await openAdminDashboard();
       } catch (error) {
         showError(error.message);
@@ -1283,13 +1293,11 @@
 
       let config;
       try {
-        config = firebaseConfigInput.value.trim() ? parseFirebaseConfig(firebaseConfigInput.value) : getSavedConfig();
-        if (!config) throw new Error("Сначала добавьте конфигурацию Firebase.");
+        config = getEmbeddedConfig();
         saveConfig(config);
       } catch (error) {
         firebaseDetails.open = true;
-        showFeedback(configFeedback, error.message, "error");
-        firebaseConfigInput.focus();
+        showFeedback(configFeedback, "Не удалось загрузить встроенную конфигурацию Firebase: " + error.message, "error");
         return;
       }
 
@@ -1306,16 +1314,6 @@
     });
 
     participantCountInput.addEventListener("input", updateDistributionPreview);
-
-    saveConfigButton.addEventListener("click", () => {
-      try {
-        const config = parseFirebaseConfig(firebaseConfigInput.value);
-        saveConfig(config);
-        showFeedback(configFeedback, "Конфигурация проверена и сохранена в этом браузере.", "success");
-      } catch (error) {
-        showFeedback(configFeedback, error.message, "error");
-      }
-    });
 
     copyRulesButton.addEventListener("click", () => copyText(FIREBASE_RULES, configFeedback, "Правила скопированы."));
     copyLinkButton.addEventListener("click", () => copyText(state.participantUrl, adminFeedback, "Ссылка для участников скопирована."));
@@ -1368,12 +1366,12 @@
       rulesBlock.textContent = FIREBASE_RULES;
       totalCardsStat.textContent = formatNumber(IMAGE_DATA.length);
       const savedConfig = getSavedConfig();
-      if (savedConfig) {
-        state.config = savedConfig;
-        firebaseConfigInput.value = JSON.stringify(savedConfig, null, 2);
-      } else {
-        firebaseDetails.open = true;
-      }
+      const embeddedConfig = getEmbeddedConfig();
+      state.config = embeddedConfig;
+      saveConfig(embeddedConfig);
+      firebaseConfigInput.value = JSON.stringify(embeddedConfig, null, 2);
+      firebaseConfigInput.readOnly = true;
+      showFeedback(configFeedback, "Конфигурация Firebase встроена в приложение и используется автоматически.", "success");
       updateDistributionPreview();
 
       const parameters = new URLSearchParams(window.location.search);
@@ -1384,8 +1382,8 @@
       if ((mode === "join" || mode === "admin") && sessionId) {
         let config;
         try {
-          config = encodedConfig ? decodeConfig(encodedConfig) : savedConfig;
-          if (!config) throw new Error("В ссылке отсутствует конфигурация Firebase.");
+          config = encodedConfig ? decodeConfig(encodedConfig) : embeddedConfig;
+          if (!config) throw new Error("В приложении отсутствует встроенная конфигурация Firebase.");
           state.config = config;
         } catch (error) {
           showError("Ссылка повреждена: " + error.message);
