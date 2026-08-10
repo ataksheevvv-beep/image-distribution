@@ -589,6 +589,9 @@
       box-shadow: 0 10px 24px rgba(34, 34, 34, 0.07);
     }
 
+    .sequence-card.is-correct { border-color: rgba(38, 173, 80, 0.62); }
+    .sequence-card.is-wrong { border-color: rgba(240, 59, 54, 0.62); }
+
     .sequence-card img {
       display: block;
       width: 100%;
@@ -738,7 +741,7 @@
               <div class="button-row">
                 <button id="copyRulesButton" class="btn btn-secondary" type="button">Скопировать правила</button>
               </div>
-              <p class="field-hint">Правила рассчитаны на учебную сессию: участник может занять только свободный номер через интерфейс приложения. Не храните в этой базе конфиденциальные данные.</p>
+              <p class="field-hint">Эта версия правил разрешает участнику занять только свой слот и сохранять выбранные порядковые номера своих карточек. После статуса «finished» ответы блокируются. Не храните в этой базе конфиденциальные данные.</p>
             </div>
           </details>
         </section>
@@ -789,15 +792,15 @@
           </div>
         </section>
       </div>
-      <section id="correctSequencePanel" class="panel" style="display:none; margin-top:24px;">
+      <section id="groupSequencePanel" class="panel" style="display:none; margin-top:24px;">
         <div class="assignment-header" style="margin-bottom:18px;">
           <div>
-            <h2 style="margin-bottom:6px;">Верная последовательность</h2>
-            <p class="muted">После завершения ведущий видит правильный порядок всех изображений.</p>
+            <h2 style="margin-bottom:6px;">Последовательность группы</h2>
+            <p class="muted">Изображения расположены по номерам, которые указали участники. Если номер не выбран, карточка показывается в конце.</p>
           </div>
-          <div class="assignment-meta"><span class="pill">30 шагов</span></div>
+          <div class="assignment-meta"><span class="pill">Все изображения</span></div>
         </div>
-        <div id="correctSequenceGrid" class="sequence-grid"></div>
+        <div id="groupSequenceGrid" class="sequence-grid"></div>
       </section>
       <p class="footer-note">Не закрывайте страницу администратора до подключения группы. После подключения участники могут продолжать работать на своих устройствах.</p>
     </section>
@@ -824,6 +827,16 @@
         <div class="assignment-meta"><span id="participantMeta" class="pill">Участник 1</span><span id="cardsMeta" class="pill">Карточек: 1</span></div>
       </div>
       <div id="imageGrid" class="image-grid"></div>
+      <section id="participantSequencePanel" class="panel" style="display:none; margin-top:28px;">
+        <div class="assignment-header" style="margin-bottom:18px;">
+          <div>
+            <h2 style="margin-bottom:6px;">Последовательность группы</h2>
+            <p class="muted">Это общий порядок, который получился из номеров, расставленных всеми участниками.</p>
+          </div>
+          <div class="assignment-meta"><span class="pill">Все изображения</span></div>
+        </div>
+        <div id="participantSequenceGrid" class="sequence-grid"></div>
+      </section>
       <p class="footer-note">При повторном открытии ссылки на этом устройстве система вернёт тот же номер.</p>
     </section>
 
@@ -938,6 +951,12 @@
           "$slotId": {
             "claimedBy": {
               ".write": "auth != null && !data.exists() && newData.val() === auth.uid && root.child('sessions').child($sessionId).child('status').val() === 'open'"
+            },
+            "orders": {
+              "$imageIndex": {
+                ".write": "auth != null && root.child('sessions').child($sessionId).child('slots').child($slotId).child('claimedBy').val() === auth.uid && root.child('sessions').child($sessionId).child('status').val() !== 'finished'",
+                ".validate": "newData.val() === null || (newData.isNumber() && newData.val() >= 1 && newData.val() <= 30)"
+              }
             }
           }
         }
@@ -1008,8 +1027,8 @@
     const toggleSessionButton = document.getElementById("toggleSessionButton");
     const finishSessionButton = document.getElementById("finishSessionButton");
     const deleteSessionButton = document.getElementById("deleteSessionButton");
-    const correctSequencePanel = document.getElementById("correctSequencePanel");
-    const correctSequenceGrid = document.getElementById("correctSequenceGrid");
+    const groupSequencePanel = document.getElementById("groupSequencePanel");
+    const groupSequenceGrid = document.getElementById("groupSequenceGrid");
     const loadingCopy = document.getElementById("loadingCopy");
     const participantNumber = document.getElementById("participantNumber");
     const participantTitle = document.getElementById("participantTitle");
@@ -1017,6 +1036,8 @@
     const cardsMeta = document.getElementById("cardsMeta");
     const participantResultBanner = document.getElementById("participantResultBanner");
     const imageGrid = document.getElementById("imageGrid");
+    const participantSequencePanel = document.getElementById("participantSequencePanel");
+    const participantSequenceGrid = document.getElementById("participantSequenceGrid");
     const errorCopy = document.getElementById("errorCopy");
     const returnHomeButton = document.getElementById("returnHomeButton");
     const imageModal = document.getElementById("imageModal");
@@ -1048,24 +1069,51 @@
       return CORRECT_ORDER_BY_IMAGE_INDEX[imageIndex] ?? null;
     }
 
-    function renderCorrectSequence() {
-      const orderedEntries = Object.entries(CORRECT_ORDER_BY_IMAGE_INDEX)
-        .map(([imageIndex, order]) => ({ imageIndex: Number(imageIndex), order: Number(order) }))
-        .sort((a, b) => a.order - b.order);
+    function collectGroupSequence(session) {
+      const items = [];
+      Object.entries(session?.slots || {}).forEach(([participantNo, slot]) => {
+        const orders = slot.orders || {};
+        (slot.images || []).forEach((imageIndex) => {
+          const rawOrder = orders[String(imageIndex)];
+          const selectedOrder = Number.isFinite(Number(rawOrder)) && Number(rawOrder) >= 1 && Number(rawOrder) <= 30
+            ? Number(rawOrder)
+            : null;
+          items.push({
+            imageIndex: Number(imageIndex),
+            selectedOrder,
+            participantNo: Number(participantNo),
+            correctOrder: getCorrectOrder(Number(imageIndex))
+          });
+        });
+      });
 
-      correctSequenceGrid.replaceChildren();
-      orderedEntries.forEach(({ imageIndex, order }) => {
+      return items.sort((a, b) => {
+        const aOrder = a.selectedOrder ?? 999;
+        const bOrder = b.selectedOrder ?? 999;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        if (a.participantNo !== b.participantNo) return a.participantNo - b.participantNo;
+        return a.imageIndex - b.imageIndex;
+      });
+    }
+
+    function renderGroupSequence(session, targetGrid) {
+      const items = collectGroupSequence(session);
+      targetGrid.replaceChildren();
+
+      items.forEach((item) => {
         const card = document.createElement("article");
-        card.className = "sequence-card";
+        const isCorrect = item.selectedOrder !== null && item.selectedOrder === item.correctOrder;
+        card.className = "sequence-card" + (item.selectedOrder === null ? "" : (isCorrect ? " is-correct" : " is-wrong"));
 
         const button = document.createElement("button");
         button.type = "button";
         button.className = "image-open-button";
-        button.setAttribute("aria-label", "Открыть правильный шаг " + formatNumber(order));
+        const orderText = item.selectedOrder === null ? "без номера" : "номер " + formatNumber(item.selectedOrder);
+        button.setAttribute("aria-label", "Открыть изображение, " + orderText);
 
         const image = document.createElement("img");
-        image.src = IMAGE_DATA[imageIndex];
-        image.alt = "Шаг " + formatNumber(order) + " правильной последовательности";
+        image.src = IMAGE_DATA[item.imageIndex];
+        image.alt = "Изображение с выбранным номером " + (item.selectedOrder ?? "не выбран");
         image.loading = "lazy";
         image.decoding = "async";
         button.append(image);
@@ -1074,13 +1122,13 @@
         const caption = document.createElement("div");
         caption.className = "sequence-caption";
         const strong = document.createElement("strong");
-        strong.textContent = "№ " + formatNumber(order);
+        strong.textContent = item.selectedOrder === null ? "Без номера" : "№ " + formatNumber(item.selectedOrder);
         const span = document.createElement("span");
-        span.textContent = "Шаг " + formatNumber(order);
+        span.textContent = "Участник " + formatNumber(item.participantNo);
         caption.append(strong, span);
 
         card.append(button, caption);
-        correctSequenceGrid.append(card);
+        targetGrid.append(card);
       });
     }
 
@@ -1341,11 +1389,12 @@
       toggleSessionButton.textContent = isOpen ? "Закрыть подключение" : "Открыть подключение";
       toggleSessionButton.className = "btn " + (isOpen ? "btn-secondary" : "btn-success");
       toggleSessionButton.disabled = isFinished;
-      toggleSessionButton.style.display = isFinished ? "none" : "inline-flex";
+      toggleSessionButton.style.display = "inline-flex";
       finishSessionButton.disabled = isFinished || !total;
-      finishSessionButton.style.display = isFinished ? "none" : "inline-flex";
-      correctSequencePanel.style.display = isFinished ? "block" : "none";
-      if (isFinished) renderCorrectSequence();
+      finishSessionButton.style.display = "inline-flex";
+      finishSessionButton.textContent = isFinished ? "Завершено" : "Завершить";
+      groupSequencePanel.style.display = isFinished ? "block" : "none";
+      if (isFinished) renderGroupSequence(session, groupSequenceGrid);
 
       slotGrid.replaceChildren();
       entries.forEach(([number, slot]) => {
@@ -1362,7 +1411,7 @@
       });
 
       if (isFinished) {
-        showFeedback(adminFeedback, "Сессия завершена. Участники уже видят, какие номера отмечены верно, а какие с ошибкой.", "success");
+        showFeedback(adminFeedback, "Сессия завершена. Ниже показана последовательность, составленная из номеров участников.", "success");
       } else if (claimed === total && total > 0) {
         showFeedback(adminFeedback, "Все участники подключились. Каждый номер занят только один раз.", "success");
       } else if (!isOpen) {
@@ -1404,7 +1453,7 @@
 
         const existing = Object.entries(slots).find(([, slot]) => slot.claimedBy === state.user.uid);
         if (existing) {
-          renderParticipant(existing[0], existing[1].images || [], session.status || "open");
+          renderParticipant(existing[0], existing[1].images || [], session.status || "open", existing[1].orders || {});
           return;
         }
 
@@ -1430,7 +1479,7 @@
             snapshot = await get(ref(state.db, "sessions/" + sessionId + "/slots/" + number));
             const slot = snapshot.val();
             localStorage.setItem("image-distribution-claim-" + sessionId, number);
-            renderParticipant(number, slot.images || [], session.status || "open");
+            renderParticipant(number, slot.images || [], session.status || "open", slot.orders || {});
             return;
           }
         }
@@ -1440,7 +1489,7 @@
         slots = session?.slots || {};
         const afterRace = Object.entries(slots).find(([, slot]) => slot.claimedBy === state.user.uid);
         if (afterRace) {
-          renderParticipant(afterRace[0], afterRace[1].images || [], session.status || "open");
+          renderParticipant(afterRace[0], afterRace[1].images || [], session.status || "open", afterRace[1].orders || {});
           return;
         }
         showFull("Все номера уже заняты. Обратитесь к администратору.");
@@ -1485,9 +1534,12 @@
     function updateParticipantReviewState(sessionStatus) {
       const isFinished = sessionStatus === "finished";
       if (isFinished) {
-        showFeedback(participantResultBanner, "Ведущий завершил проверку. Зелёным отмечены верные номера, красным — ошибки.", "success");
+        showFeedback(participantResultBanner, "Ведущий завершил сессию. Ниже открыт общий порядок, который получился из ответов всех участников.", "success");
+        participantSequencePanel.style.display = "block";
+        if (state.sessionData) renderGroupSequence(state.sessionData, participantSequenceGrid);
       } else {
         clearFeedback(participantResultBanner);
+        participantSequencePanel.style.display = "none";
       }
 
       state.participantControls.forEach((control) => {
@@ -1522,13 +1574,21 @@
         }
         const session = snapshot.val();
         state.sessionData = session;
+        const slot = session.slots?.[String(number)] || {};
+        const remoteOrders = slot.orders || {};
+        state.participantControls.forEach((control) => {
+          const remoteValue = remoteOrders[String(control.imageIndex)];
+          const normalized = Number.isFinite(Number(remoteValue)) ? String(Number(remoteValue)) : "";
+          if (control.select.value !== normalized) control.select.value = normalized;
+        });
+        refreshOrderOptions(state.participantControls.map((control) => control.select));
         updateParticipantReviewState(session.status || "open");
       }, (error) => {
         showError("Не удалось получить статус сессии: " + error.message);
       });
     }
 
-    function renderParticipant(number, imageIndexes, sessionStatus = "open") {
+    function renderParticipant(number, imageIndexes, sessionStatus = "open", remoteOrders = {}) {
       state.participantNumber = String(number);
       state.participantImages = imageIndexes.slice();
       state.participantControls = [];
@@ -1538,7 +1598,7 @@
       cardsMeta.textContent = "Карточек: " + formatNumber(imageIndexes.length);
       imageGrid.replaceChildren();
 
-      const savedOrders = loadOrderAssignments(number);
+      const savedOrders = { ...loadOrderAssignments(number), ...remoteOrders };
       const selects = [];
 
       imageIndexes.forEach((imageIndex, position) => {
@@ -1596,12 +1656,28 @@
         }
 
         selects.push(orderSelect);
-        orderSelect.addEventListener("change", () => {
+        orderSelect.addEventListener("change", async () => {
           const assignments = loadOrderAssignments(number);
-          if (orderSelect.value) assignments[String(imageIndex)] = Number(orderSelect.value);
+          const previousValue = assignments[String(imageIndex)] ?? null;
+          const nextValue = orderSelect.value ? Number(orderSelect.value) : null;
+          if (nextValue !== null) assignments[String(imageIndex)] = nextValue;
           else delete assignments[String(imageIndex)];
           saveOrderAssignments(number, assignments);
           refreshOrderOptions(selects);
+
+          try {
+            await set(
+              ref(state.db, "sessions/" + state.sessionId + "/slots/" + number + "/orders/" + imageIndex),
+              nextValue
+            );
+          } catch (error) {
+            if (previousValue !== null) assignments[String(imageIndex)] = previousValue;
+            else delete assignments[String(imageIndex)];
+            saveOrderAssignments(number, assignments);
+            orderSelect.value = previousValue === null ? "" : String(previousValue);
+            refreshOrderOptions(selects);
+            showFeedback(participantResultBanner, "Не удалось сохранить номер в общей сессии. Проверьте правила Firebase.", "error");
+          }
         });
 
         const orderResult = document.createElement("div");
@@ -1623,6 +1699,16 @@
       showScreen("participant");
       subscribeParticipantSession(number);
       updateParticipantReviewState(sessionStatus);
+
+      if (sessionStatus !== "finished") {
+        Object.entries(savedOrders).forEach(async ([imageIndex, order]) => {
+          try {
+            await set(ref(state.db, "sessions/" + state.sessionId + "/slots/" + number + "/orders/" + imageIndex), Number(order));
+          } catch (error) {
+            // Ошибка будет показана при следующем изменении участником.
+          }
+        });
+      }
     }
 
     function showFull(message) {
@@ -1702,7 +1788,7 @@
 
     finishSessionButton.addEventListener("click", async () => {
       if (!state.sessionData || !state.sessionId) return;
-      const confirmed = window.confirm("Завершить сессию? После этого участники увидят правильность своих ответов.");
+      const confirmed = window.confirm("Завершить сессию? После этого номера участников будут заблокированы, а у всех откроется общая последовательность.");
       if (!confirmed) return;
       finishSessionButton.disabled = true;
       try {
