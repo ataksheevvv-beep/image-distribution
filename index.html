@@ -1375,9 +1375,7 @@
       border-radius: 50%;
       background: #7FA0FF;
     }
-    .timer-chip.is-warning { background: #C9302C; }
-    .timer-chip.is-over { background: #F03B36; animation: timer-pulse 1.2s ease-in-out infinite; }
-    @keyframes timer-pulse { 50% { opacity: 0.72; } }
+    .timer-chip.is-stopped { background: #6B6B6B; }
 
     /* заголовок участника */
     .me-header {
@@ -1486,9 +1484,18 @@
     /* карточки: показываем изображение целиком, без обрезки */
     .image-card img,
     .sequence-card img {
-      aspect-ratio: auto;
+      aspect-ratio: 1 / 1;
       height: auto;
-      object-fit: contain;
+      object-fit: cover;
+    }
+    /* исходный размер: уменьшаем только если не помещается по ширине, по высоте — прокрутка */
+    #imageModal.is-open { display: flex; overflow: auto; }
+    #imageModal .modal-content { max-width: none; max-height: none; margin: auto; flex: 0 0 auto; }
+    #imageModal .modal-content img {
+      width: auto;
+      height: auto;
+      max-width: calc(100vw - 64px);
+      max-height: none;
     }
     .image-grid, .sequence-grid { align-items: start; }
     @media (max-width: 640px) {
@@ -1622,9 +1629,6 @@
     .fact:last-child { border-bottom: 0; }
     .fact span { color: rgba(34, 34, 34, 0.64); }
     .fact strong { font-weight: 500; text-align: right; }
-    .people-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-    .people-chip { padding: 6px 12px; border-radius: 999px; background: #FFFFFF; font-size: 14px; }
-    .people-chip.is-me { color: #FFFFFF; background: var(--kontur-dark); }
     .results-toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -1644,71 +1648,23 @@
       cursor: pointer;
     }
     .tab.is-active { color: var(--kontur-dark); background: #FFFFFF; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); }
-    .sequence-card { border: 2px solid transparent; }
-    .sequence-card.is-correct { border-color: rgba(37, 173, 80, 0.75); }
-    .sequence-card.is-wrong { border-color: rgba(240, 59, 54, 0.65); }
+    .sequence-card { border: 4px solid transparent; }
+    .sequence-card.is-correct { border-color: #25AD50; }
+    .sequence-card.is-wrong { border-color: #F03B36; }
     .sequence-caption { padding-bottom: 4px; }
     .seq-note { padding: 0 18px 14px; color: rgba(34, 34, 34, 0.56); font-size: 13px; line-height: 18px; }
     .seq-note.is-dup { color: #9A5B00; }
-    .debrief { margin-top: 32px; padding: 28px; border-radius: 20px; background: var(--kontur-blue-soft); }
-    .debrief h3 { margin: 0 0 12px; }
-    .debrief ul { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
     @media (max-width: 900px) { .results-summary { grid-template-columns: minmax(0, 1fr); } }
     @media (max-width: 640px) {
       .score-value strong { font-size: 56px; }
       .fact-list { padding: 4px 18px; }
     }
 
-    /* показ эталона */
-    .reveal-modal { z-index: 40; padding: 0; background: #111111; }
-    .reveal-modal.is-open { display: flex; flex-direction: column; align-items: stretch; }
-    .reveal-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      padding: 16px 24px;
-      color: #FFFFFF;
-    }
-    .reveal-top strong { font-size: 18px; font-weight: 500; }
-    .reveal-close {
-      width: 44px;
-      height: 44px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%;
-      color: #FFFFFF;
-      background: transparent;
-      font-size: 24px;
-      cursor: pointer;
-    }
-    .reveal-stage { width: 100%; flex: 1; min-height: 0; display: grid; place-items: center; padding: 0 24px; overflow: hidden; }
-    .reveal-stage img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
-    .reveal-in { animation: reveal-zoom 700ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-    @keyframes reveal-zoom { from { opacity: 0; transform: scale(0.72); } to { opacity: 1; transform: scale(1); } }
-    .reveal-bottom {
-      display: grid;
-      justify-items: center;
-      gap: 12px;
-      padding: 16px 24px calc(20px + env(safe-area-inset-bottom, 0px));
-      color: #FFFFFF;
-      text-align: center;
-    }
-    .reveal-caption { min-height: 24px; color: rgba(255, 255, 255, 0.78); }
-    .reveal-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-    .reveal-controls .btn-secondary {
-      color: #FFFFFF;
-      background: transparent;
-      border-color: rgba(255, 255, 255, 0.34);
-    }
-    .reveal-controls .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); }
-    @media (prefers-reduced-motion: reduce) {
-      .reveal-in, .screen.is-active, .timer-chip.is-over { animation: none; }
-    }
-
     /* панель администратора */
     .answers-line { display: flex; justify-content: space-between; gap: 12px; margin: 14px 0 8px; color: rgba(34, 34, 34, 0.68); font-size: 14px; }
     .timer-box { margin-top: 24px; padding: 20px; border-radius: 16px; background: #FFFFFF; }
     .timer-box h3 { margin: 0 0 12px; font-size: 18px; line-height: 24px; }
+    .stopwatch-value { font-size: 56px; line-height: 1.05; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
     .timer-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .timer-select {
       min-height: 48px;
@@ -1733,6 +1689,10 @@
       .timer-status { width: 100%; margin-left: 0; }
       .danger-zone { flex-direction: column; align-items: flex-start; }
     }
+
+    /* кнопки администратора — чуть мягче */
+    #adminSetupScreen .btn,
+    #adminSessionScreen .btn { border-radius: 10px; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js';document.head.appendChild(s);"></script>
 </head>
@@ -1746,7 +1706,7 @@
         </span>
       </div>
       <div class="topbar-meta"><span class="topbar-dot" aria-hidden="true"></span>Учебная сессия</div>
-      <div id="timerChip" class="timer-chip" role="timer" aria-live="off" hidden><span class="timer-dot" aria-hidden="true"></span><span id="timerChipText">10:00</span></div>
+      <div id="stopwatchChip" class="timer-chip" role="timer" aria-live="off" hidden><span class="timer-dot" aria-hidden="true"></span><span id="stopwatchChipText">00:00</span></div>
     </header>
 
     <section id="adminSetupScreen" class="screen" aria-labelledby="adminSetupTitle">
@@ -1846,22 +1806,9 @@
           <div id="adminFeedback" class="feedback" role="status"></div>
           <div id="slotGrid" class="slot-grid"></div>
           <div class="timer-box">
-            <h3>Таймер обсуждения</h3>
-            <div class="timer-controls">
-              <select id="timerMinutes" class="timer-select" aria-label="Длительность таймера">
-                <option value="3">3 мин</option>
-                <option value="5">5 мин</option>
-                <option value="10" selected>10 мин</option>
-                <option value="15">15 мин</option>
-                <option value="20">20 мин</option>
-                <option value="30">30 мин</option>
-              </select>
-              <button id="timerStartButton" class="btn btn-primary" type="button">Запустить</button>
-              <button id="timerAddButton" class="btn btn-secondary" type="button">+1 мин</button>
-              <button id="timerStopButton" class="btn btn-secondary" type="button">Сбросить</button>
-              <span id="timerStatus" class="timer-status">Таймер не запущен</span>
-            </div>
-            <p class="field-hint">Таймер виден всем участникам. Когда время выйдет, ввод не блокируется: завершает упражнение ведущий.</p>
+            <h3>Секундомер упражнения</h3>
+            <div id="stopwatchValue" class="stopwatch-value">00:00</div>
+            <p id="stopwatchNote" class="field-hint">Секундомер запустится, когда подключатся все участники.</p>
           </div>
           <div class="admin-actions">
             <button id="toggleSessionButton" class="btn btn-secondary" type="button">Закрыть подключение</button>
@@ -1877,7 +1824,7 @@
         <div class="assignment-header" style="margin-top:0; margin-bottom:18px;">
           <div>
             <h2 style="margin-bottom:6px;">Результат группы</h2>
-            <p class="muted">Сравните ответ группы с правильной последовательностью и запустите показ в стиле «Zoom».</p>
+            <p class="muted">Сравните ответ группы с правильной последовательностью.</p>
           </div>
         </div>
         <div id="adminResultsRoot"></div>
@@ -1979,22 +1926,6 @@
       <div id="pickerGrid" class="picker-grid"></div>
       <div class="button-row">
         <button id="pickerClear" class="btn btn-secondary" type="button">Снять номер</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="revealModal" class="modal reveal-modal" role="dialog" aria-modal="true" aria-label="Показ правильной последовательности">
-    <div class="reveal-top">
-      <strong id="revealCounter">Кадр 1 из 30</strong>
-      <button id="revealClose" class="reveal-close" type="button" aria-label="Закрыть">×</button>
-    </div>
-    <div class="reveal-stage"><img id="revealImage" src="" alt="Карточка правильной последовательности"></div>
-    <div class="reveal-bottom">
-      <div id="revealCaption" class="reveal-caption"></div>
-      <div class="reveal-controls">
-        <button id="revealPrev" class="btn btn-secondary" type="button">← Назад</button>
-        <button id="revealPlay" class="btn btn-primary" type="button">Автопоказ</button>
-        <button id="revealNext" class="btn btn-secondary" type="button">Дальше →</button>
       </div>
     </div>
   </div>
@@ -2140,6 +2071,7 @@
       answersProgress: { filled: 0, total: 0 },
       resultsTab: "group",
       revealItems: [],
+      startingStopwatch: false,
       pickerControl: null
     };
 
@@ -2184,13 +2116,10 @@
     const imageModal = document.getElementById("imageModal");
     const modalImage = document.getElementById("modalImage");
     const modalClose = document.getElementById("modalClose");
-    const timerChip = document.getElementById("timerChip");
-    const timerChipText = document.getElementById("timerChipText");
-    const timerMinutes = document.getElementById("timerMinutes");
-    const timerStartButton = document.getElementById("timerStartButton");
-    const timerAddButton = document.getElementById("timerAddButton");
-    const timerStopButton = document.getElementById("timerStopButton");
-    const timerStatus = document.getElementById("timerStatus");
+    const stopwatchChip = document.getElementById("stopwatchChip");
+    const stopwatchChipText = document.getElementById("stopwatchChipText");
+    const stopwatchValue = document.getElementById("stopwatchValue");
+    const stopwatchNote = document.getElementById("stopwatchNote");
     const answersText = document.getElementById("answersText");
     const answersProgress = document.getElementById("answersProgress");
     const adminResultsRoot = document.getElementById("adminResultsRoot");
@@ -2203,14 +2132,6 @@
     const pickerGrid = document.getElementById("pickerGrid");
     const pickerClose = document.getElementById("pickerClose");
     const pickerClear = document.getElementById("pickerClear");
-    const revealModal = document.getElementById("revealModal");
-    const revealImage = document.getElementById("revealImage");
-    const revealCounter = document.getElementById("revealCounter");
-    const revealCaption = document.getElementById("revealCaption");
-    const revealClose = document.getElementById("revealClose");
-    const revealPrev = document.getElementById("revealPrev");
-    const revealNext = document.getElementById("revealNext");
-    const revealPlay = document.getElementById("revealPlay");
 
     function formatNumber(value) {
       const number = Number(value);
@@ -2365,7 +2286,7 @@
     function renderResults(session, root, options = {}) {
       if (!session || !root) return;
       const items = collectItems(session);
-      const signature = [state.resultsTab, state.participantNumber, options.admin ? "a" : "p"]
+      const signature = [state.resultsTab, state.participantNumber, options.admin ? "a" : "p", session.startedAt || "", session.finishedAt || ""]
         .concat(items.map((item) => item.imageIndex + ":" + (item.selectedOrder ?? "") + ":" + item.participantNo)).join("|");
       if (root.dataset.signature === signature) return;
       root.dataset.signature = signature;
@@ -2387,7 +2308,9 @@
       score.append(track);
 
       const facts = el("div", "fact-list");
+      const duration = getExerciseDuration(session);
       [
+        ["Время упражнения", duration === null ? "не засекалось" : formatDuration(duration)],
         ["Карточек без номера", stats.unanswered ? formatNumber(stats.unanswered) : "нет"],
         ["Номера, выбранные несколько раз", formatList(stats.duplicates)],
         ["Номера, которые никто не выбрал", formatList(stats.missing)]
@@ -2397,13 +2320,6 @@
         facts.append(row);
       });
       summary.append(score, facts);
-
-      const people = el("div", "people-row");
-      stats.participants.forEach((person) => {
-        const mine = !state.preview && String(person.no) === String(state.participantNumber) && !options.admin;
-        people.append(el("span", "people-chip" + (mine ? " is-me" : ""),
-          "Участник " + formatNumber(person.no) + " · " + formatNumber(person.correct) + " из " + formatNumber(person.total)));
-      });
 
       const toolbar = el("div", "results-toolbar");
       const tabs = el("div", "tabs");
@@ -2420,129 +2336,65 @@
         });
         tabs.append(tab);
       });
-      const revealButton = el("button", "btn btn-primary", "Показать как в «Zoom»");
-      revealButton.type = "button";
-      revealButton.addEventListener("click", () => openReveal(0));
-      toolbar.append(tabs, revealButton);
+      toolbar.append(tabs);
 
       const grid = el("div", "sequence-grid");
       const ordered = state.resultsTab === "reference" ? state.revealItems : collectGroupSequence(session);
       ordered.forEach((item) => grid.append(buildSequenceCard(item, state.resultsTab, stats.duplicateSet)));
 
-      root.append(summary, people, toolbar, grid);
+      root.append(summary, toolbar, grid);
 
-      if (options.admin) {
-        const debrief = el("div", "debrief");
-        debrief.append(el("h3", null, "Вопросы для обсуждения"));
-        const list = el("ul");
-        [
-          "По какой логике вы выстраивали порядок? Когда она появилась у группы?",
-          "Что мешало договориться: описание картинок словами, разные трактовки, нехватка информации?",
-          "Кто взял на себя роль координатора и как это повлияло на результат?",
-          "Что вы сделаете иначе, если повторить упражнение?"
-        ].forEach((text) => list.append(el("li", null, text)));
-        debrief.append(list);
-        root.append(debrief);
-      }
     }
 
-    /* ===== Показ эталона ===== */
-    const reveal = { index: 0, timer: null };
-
-    function openReveal(start) {
-      if (!state.revealItems.length) return;
-      reveal.index = Math.max(0, Math.min(state.revealItems.length - 1, start || 0));
-      revealModal.classList.add("is-open");
-      document.body.style.overflow = "hidden";
-      renderRevealFrame();
-      revealClose.focus();
-    }
-
-    function closeReveal() {
-      stopRevealAutoplay();
-      revealModal.classList.remove("is-open");
-      revealImage.src = "";
-      document.body.style.overflow = "";
-    }
-
-    function renderRevealFrame() {
-      const item = state.revealItems[reveal.index];
-      if (!item) return;
-      revealImage.src = IMAGE_DATA[item.imageIndex];
-      revealImage.classList.remove("reveal-in");
-      void revealImage.offsetWidth;
-      revealImage.classList.add("reveal-in");
-      revealCounter.textContent = "Кадр " + formatNumber(reveal.index + 1) + " из " + formatNumber(state.revealItems.length);
-      let text = "Держал карточку: участник " + formatNumber(item.participantNo) + ". ";
-      if (item.selectedOrder === null) text += "Номер не поставлен.";
-      else if (item.selectedOrder === item.correctOrder) text += "Группа поставила верно.";
-      else text += "Группа поставила № " + formatNumber(item.selectedOrder) + ".";
-      revealCaption.textContent = text;
-      revealPrev.disabled = reveal.index === 0;
-      revealNext.disabled = reveal.index === state.revealItems.length - 1;
-    }
-
-    function stepReveal(delta) {
-      const last = state.revealItems.length - 1;
-      reveal.index = Math.max(0, Math.min(last, reveal.index + delta));
-      renderRevealFrame();
-      if (reveal.index >= last) stopRevealAutoplay();
-    }
-
-    function stopRevealAutoplay() {
-      if (reveal.timer) clearInterval(reveal.timer);
-      reveal.timer = null;
-      revealPlay.textContent = "Автопоказ";
-    }
-
-    function toggleRevealAutoplay() {
-      if (reveal.timer) {
-        stopRevealAutoplay();
-        return;
-      }
-      if (reveal.index >= state.revealItems.length - 1) {
-        reveal.index = 0;
-        renderRevealFrame();
-      }
-      revealPlay.textContent = "Пауза";
-      reveal.timer = setInterval(() => stepReveal(1), 3500);
-    }
-
-    /* ===== Таймер ===== */
-    function formatClock(ms) {
-      const total = Math.max(0, Math.ceil(ms / 1000));
-      const minutes = Math.floor(total / 60);
+    /* ===== Секундомер ===== */
+    function formatDuration(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
       const seconds = total % 60;
-      return String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
-    }
-
-    function updateTimerUI() {
-      const session = state.sessionData;
-      const timer = session?.timer;
-      const hasTimer = Boolean(timer) && Number.isFinite(Number(timer.endsAt));
-      const isFinished = session?.status === "finished";
-      const remaining = hasTimer ? Number(timer.endsAt) - (Date.now() + state.serverOffset) : 0;
-      const onTimerScreen = state.currentScreen === "adminSession" || state.currentScreen === "participant";
-      const showChip = hasTimer && !isFinished && onTimerScreen;
-
-      timerChip.hidden = !showChip;
-      if (showChip) {
-        timerChipText.textContent = remaining <= 0 ? "Время вышло" : formatClock(remaining);
-        timerChip.classList.toggle("is-warning", remaining > 0 && remaining <= 60000);
-        timerChip.classList.toggle("is-over", remaining <= 0);
-      }
-
-      if (state.currentScreen === "adminSession") {
-        timerStatus.textContent = !hasTimer ? "Таймер не запущен" : (remaining <= 0 ? "Время вышло" : "Осталось " + formatClock(remaining));
-        timerStartButton.disabled = isFinished;
-        timerAddButton.disabled = isFinished || !hasTimer;
-        timerStopButton.disabled = isFinished || !hasTimer;
-        timerMinutes.disabled = isFinished;
-      }
+      const mm = String(minutes).padStart(2, "0");
+      const ss = String(seconds).padStart(2, "0");
+      return hours > 0 ? hours + ":" + mm + ":" + ss : mm + ":" + ss;
     }
 
     function nowMs() {
       return Date.now() + state.serverOffset;
+    }
+
+    function getExerciseDuration(session) {
+      const startedAt = Number(session?.startedAt) || 0;
+      const finishedAt = Number(session?.finishedAt) || 0;
+      if (!startedAt || !finishedAt || finishedAt < startedAt) return null;
+      return finishedAt - startedAt;
+    }
+
+    function updateStopwatchUI() {
+      const onAdmin = state.currentScreen === "adminSession";
+      const session = state.sessionData;
+      if (!onAdmin || !session) {
+        stopwatchChip.hidden = true;
+        return;
+      }
+      const startedAt = Number(session.startedAt) || 0;
+      const isFinished = session.status === "finished";
+      let elapsed = null;
+      let note;
+      if (!startedAt) {
+        note = isFinished
+          ? "Секундомер не запускался: не все участники успели подключиться."
+          : "Секундомер запустится, когда подключатся все участники.";
+      } else if (isFinished) {
+        elapsed = getExerciseDuration(session);
+        note = "Упражнение завершено. Секундомер остановлен.";
+      } else {
+        elapsed = nowMs() - startedAt;
+        note = "Идёт упражнение. Отсчёт начался, когда подключились все участники.";
+      }
+      stopwatchValue.textContent = elapsed === null ? "00:00" : formatDuration(elapsed);
+      stopwatchNote.textContent = note;
+      stopwatchChip.hidden = !startedAt;
+      stopwatchChipText.textContent = elapsed === null ? "00:00" : formatDuration(elapsed);
+      stopwatchChip.classList.toggle("is-stopped", isFinished);
     }
 
     function showScreen(name) {
@@ -2551,7 +2403,7 @@
         element.classList.toggle("is-active", key === name);
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
-      updateTimerUI();
+      updateStopwatchUI();
     }
 
     function showFeedback(element, message, type = "info") {
@@ -2850,7 +2702,7 @@
       });
 
       if (isFinished) {
-        showFeedback(adminFeedback, "Сессия завершена. Ниже результат группы и показ правильной последовательности.", "success");
+        showFeedback(adminFeedback, "Сессия завершена. Ниже результат группы.", "success");
       } else if (claimed === total && total > 0) {
         showFeedback(adminFeedback, "Все участники подключились. Каждый номер занят только один раз.", "success");
       } else if (!isOpen) {
@@ -2858,7 +2710,13 @@
       } else {
         clearFeedback(adminFeedback);
       }
-      updateTimerUI();
+      if (!isFinished && total > 0 && claimed === total && !session.startedAt && !state.startingStopwatch) {
+        state.startingStopwatch = true;
+        set(ref(state.db, "sessions/" + state.sessionId + "/startedAt"), nowMs())
+          .catch(() => {})
+          .finally(() => { state.startingStopwatch = false; });
+      }
+      updateStopwatchUI();
     }
 
     async function restoreAdminSession(sessionId, config) {
@@ -3038,7 +2896,7 @@
       if (!pickerModal.classList.contains("is-open")) return;
       pickerModal.classList.remove("is-open");
       state.pickerControl = null;
-      if (!imageModal.classList.contains("is-open") && !revealModal.classList.contains("is-open")) document.body.style.overflow = "";
+      if (!imageModal.classList.contains("is-open")) document.body.style.overflow = "";
     }
 
     function updateParticipantReviewState(sessionStatus) {
@@ -3074,7 +2932,7 @@
           control.result.textContent = (control.value === null ? "Номер не выбран. " : "Ошибка. ") + "Верный номер — № " + formatNumber(correctOrder);
         }
       });
-      updateTimerUI();
+      updateStopwatchUI();
     }
 
     function subscribeParticipantSession(number) {
@@ -3222,7 +3080,7 @@
     function closeModal() {
       imageModal.classList.remove("is-open");
       modalImage.src = "";
-      if (!revealModal.classList.contains("is-open") && !pickerModal.classList.contains("is-open")) document.body.style.overflow = "";
+      if (!pickerModal.classList.contains("is-open")) document.body.style.overflow = "";
     }
 
     sessionForm.addEventListener("submit", async (event) => {
@@ -3289,7 +3147,7 @@
       if (!confirmed) return;
       finishSessionButton.disabled = true;
       try {
-        await update(ref(state.db, "sessions/" + state.sessionId), { status: "finished", finishedAt: Date.now() });
+        await update(ref(state.db, "sessions/" + state.sessionId), { status: "finished", finishedAt: nowMs() });
       } catch (error) {
         showFeedback(adminFeedback, "Не удалось завершить сессию: " + error.message, "error");
       } finally {
@@ -3326,36 +3184,6 @@
       showScreen("adminSetup");
     });
 
-    timerStartButton.addEventListener("click", async () => {
-      if (!state.sessionId) return;
-      const minutes = Number(timerMinutes.value) || 10;
-      try {
-        await set(ref(state.db, "sessions/" + state.sessionId + "/timer"), { endsAt: nowMs() + minutes * 60000, durationSec: minutes * 60 });
-      } catch (error) {
-        showFeedback(adminFeedback, "Не удалось запустить таймер: " + error.message, "error");
-      }
-    });
-
-    timerAddButton.addEventListener("click", async () => {
-      const timer = state.sessionData?.timer;
-      if (!state.sessionId || !timer) return;
-      const base = Math.max(Number(timer.endsAt) || 0, nowMs());
-      try {
-        await set(ref(state.db, "sessions/" + state.sessionId + "/timer"), { endsAt: base + 60000, durationSec: Number(timer.durationSec) || 60 });
-      } catch (error) {
-        showFeedback(adminFeedback, "Не удалось изменить таймер: " + error.message, "error");
-      }
-    });
-
-    timerStopButton.addEventListener("click", async () => {
-      if (!state.sessionId) return;
-      try {
-        await remove(ref(state.db, "sessions/" + state.sessionId + "/timer"));
-      } catch (error) {
-        showFeedback(adminFeedback, "Не удалось сбросить таймер: " + error.message, "error");
-      }
-    });
-
     pickerClose.addEventListener("click", closePicker);
     pickerModal.addEventListener("click", (event) => { if (event.target === pickerModal) closePicker(); });
     pickerClear.addEventListener("click", async () => {
@@ -3364,20 +3192,9 @@
       if (control) await commitOrder(control, null);
     });
 
-    revealClose.addEventListener("click", closeReveal);
-    revealPrev.addEventListener("click", () => stepReveal(-1));
-    revealNext.addEventListener("click", () => stepReveal(1));
-    revealPlay.addEventListener("click", toggleRevealAutoplay);
-
     modalClose.addEventListener("click", closeModal);
     imageModal.addEventListener("click", (event) => { if (event.target === imageModal) closeModal(); });
     document.addEventListener("keydown", (event) => {
-      if (revealModal.classList.contains("is-open")) {
-        if (event.key === "Escape") closeReveal();
-        else if (event.key === "ArrowRight") { event.preventDefault(); stepReveal(1); }
-        else if (event.key === "ArrowLeft") { event.preventDefault(); stepReveal(-1); }
-        return;
-      }
       if (event.key === "Escape") {
         closePicker();
         closeModal();
@@ -3401,7 +3218,7 @@
       const sessionId = parameters.get("session");
       const encodedConfig = parameters.get("cfg");
 
-      setInterval(updateTimerUI, 500);
+      setInterval(updateStopwatchUI, 500);
 
       if ((mode === "join" || mode === "admin" || mode === "preview") && sessionId) {
         let config;
